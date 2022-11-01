@@ -26,6 +26,4 @@ interface IERC4626ExtensionWithRound {
     event End(uint256 indexed round, uint256 assets, uint256 shares);
 
     event Settle(uint256 indexed round, uint256 newShares, uint256 burnShares, uint256 redeemAssets);
-
-    event StateUpdate(VaultState indexed state);
 }
