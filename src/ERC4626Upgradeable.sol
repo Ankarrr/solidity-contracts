@@ -3,11 +3,11 @@
 
 pragma solidity ^0.8.0;
 
-import "../ERC20Upgradeable.sol";
-import "../utils/SafeERC20Upgradeable.sol";
-import "../../../interfaces/IERC4626Upgradeable.sol";
-import "../../../utils/math/MathUpgradeable.sol";
-import "../../../proxy/utils/Initializable.sol";
+import "../lib/openzeppelin-contracts-upgradeable/contracts/token/ERC20/ERC20Upgradeable.sol";
+import "../lib/openzeppelin-contracts-upgradeable/contracts/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import "../lib/openzeppelin-contracts-upgradeable/contracts/interfaces/IERC4626Upgradeable.sol";
+import "../lib/openzeppelin-contracts-upgradeable/contracts/utils/math/MathUpgradeable.sol";
+import "../lib/openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 
 /**
  * @dev Implementation of the ERC4626 "Tokenized Vault Standard" as defined in
