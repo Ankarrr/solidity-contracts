@@ -114,22 +114,22 @@ contract ERC4626ExtensionWithRound is Initializable, ERC4626Upgradeable, IERC462
 
     /// @dev See {IERC4626ExtensionWithRound}
     function settle() external override onlyUnlocked returns (bool) {
-        uint256 new_Shares = _handleDepositReceipts();
-        (uint256 burn_Shares, uint256 redeemAssets) = _handleRedeemReceipts();
+        uint256 newShares = _handleDepositReceipts();
+        (uint256 burnShares, uint256 redeemAssets) = _handleRedeemReceipts();
 
-        emit Settle(round, new_Shares, burn_Shares, redeemAssets);
+        emit Settle(round, newShares, burnShares, redeemAssets);
         return true;
     }
 
     /// @dev Mint new _shares for every deposit receipts
-    function _handleDepositReceipts() private onlyUnlocked returns (uint256 new_Shares) {
+    function _handleDepositReceipts() private onlyUnlocked returns (uint256 newShares) {
         // Issue new _shares
         for (uint256 i = 0; i < depositReceipts.length; i++) {
             uint256 _shares = previewDeposit(depositReceipts[i].assets);
 
             _mint(depositReceipts[i].depositor, _shares);
 
-            new_Shares.add(_shares);
+            newShares.add(_shares);
         }
     
         // Delete all receipts
@@ -137,7 +137,7 @@ contract ERC4626ExtensionWithRound is Initializable, ERC4626Upgradeable, IERC462
     }
 
     /// @dev Burn _shares and transfer assets for every redeem receipts
-    function _handleRedeemReceipts() private onlyUnlocked returns (uint256 burn_Shares, uint256 redeemAssets) {
+    function _handleRedeemReceipts() private onlyUnlocked returns (uint256 burnShares, uint256 redeemAssets) {
         // Burn _shares & transfer asset to withdrawer
         for (uint256 i = 0; i < redeemReceipts.length; i++) {
             uint256 assets = previewRedeem(redeemReceipts[i]._shares);
@@ -146,7 +146,7 @@ contract ERC4626ExtensionWithRound is Initializable, ERC4626Upgradeable, IERC462
 
             IERC20Upgradeable(asset()).safeTransfer(redeemReceipts[i].withdrawer, assets);
 
-            burn_Shares.add(redeemReceipts[i]._shares);
+            burnShares.add(redeemReceipts[i]._shares);
             redeemAssets.add(assets);
         }
 
