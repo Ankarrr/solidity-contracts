@@ -23,23 +23,30 @@ struct RedeemReceipts {
     uint256 _shares;
 }
 
+/// @dev An extension of ERC4626 that provides more functions to support rounds.
 contract ERC4626ExtensionWithRound is Initializable, ERC4626Upgradeable, IERC4626ExtensionWithRound {
     using SafeMathUpgradeable for uint256;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
+    /// @dev The state of vault. It can be LOCKED or UNLOCKED
     VaultState public override state;
 
+    /// @dev The current round of vault. It starts from 0, and will add 1 when start a new round
     uint256 public override round;
 
+    /// @dev The recepts of every registered deposits
     DepositReceipt[] public depositReceipts;
 
+    /// @dev The recepts of every registered redemptions
     RedeemReceipts[] public redeemReceipts;
 
+    /// @dev Throw if the vault state is LOCKED
     modifier onlyUnlocked {
         require(state == VaultState.UNLOCKED, "Vault is locked");
         _;
     }
 
+    /// @dev Throw if the vault state is UNLOCKED
     modifier onlyLocked {
         require(state == VaultState.LOCKED, "Vault is unlocked");
         _;
