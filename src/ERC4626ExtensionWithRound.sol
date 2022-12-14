@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 import "../lib/openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/token/ERC20/extensions/ERC4626Upgradeable.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/token/ERC20/utils/SafeERC20Upgradeable.sol";
-import "../lib/openzeppelin-contracts-upgradeable/contracts/utils/math/SafeMathUpgradeable.sol";
 import "../lib/openzeppelin-contracts-upgradeable/contracts/interfaces/IERC20Upgradeable.sol";
 import "./interfaces/IERC4626ExtensionWithRound.sol";
 
@@ -25,7 +24,6 @@ struct RedeemReceipts {
 
 /// @dev An extension of ERC4626 that provides more functions to support rounds.
 contract ERC4626ExtensionWithRound is Initializable, ERC4626Upgradeable, IERC4626ExtensionWithRound {
-    using SafeMathUpgradeable for uint256;
     using SafeERC20Upgradeable for IERC20Upgradeable;
 
     /// @dev The state of vault. It can be LOCKED or UNLOCKED
@@ -94,7 +92,7 @@ contract ERC4626ExtensionWithRound is Initializable, ERC4626Upgradeable, IERC462
     function start() external override onlyLocked returns (bool) {
         require(depositReceipts.length == 0 && redeemReceipts.length == 0, "Unhandled receipts");
 
-        round = round.add(1);
+        round = round + 1;
         state = VaultState.LOCKED;
 
         emit Start(
@@ -136,7 +134,7 @@ contract ERC4626ExtensionWithRound is Initializable, ERC4626Upgradeable, IERC462
 
             _mint(depositReceipts[i].depositor, _shares);
 
-            newShares.add(_shares);
+            newShares += _shares;
         }
     
         // Delete all receipts
@@ -153,8 +151,8 @@ contract ERC4626ExtensionWithRound is Initializable, ERC4626Upgradeable, IERC462
 
             IERC20Upgradeable(asset()).safeTransfer(redeemReceipts[i].withdrawer, assets);
 
-            burnShares.add(redeemReceipts[i]._shares);
-            redeemAssets.add(assets);
+            burnShares += redeemReceipts[i]._shares;
+            redeemAssets += assets;
         }
 
         // Delete all receipts
