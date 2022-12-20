@@ -7,23 +7,23 @@ interface IERC4626ExtensionWithRound {
 
     function round() external view returns (uint256 round);
 
-    function registerDeposit(uint256 assets) external returns (bool);
+    function scheduleDeposit(uint256 assets) external;
 
-    function registerRedeem(uint256 shares) external returns (bool);
+    function scheduleRedeem(uint256 shares) external;
 
-    function start() external returns (bool);
+    function settleDeposits(address depositor) external returns (uint256 newShares);
 
-    function end() external returns (bool);
+    function settleRedemptions(address redeemer) external returns (uint256 burnShares, uint256 redeemAssets);
 
-    function settle() external returns (bool);
+    function getScheduledDeposits(address depositor) external view returns (uint256 totalAssets);
 
-    event RegisterDeposit(address indexed sender, uint256 assets, uint256 round);
+    function getScheduledRedemptions(address redeemer) external view returns (uint256 totalShares);
 
-    event RegisterRedeem(address indexed sender, uint256 shares, uint256 round);
+    event ScheduleDeposit(address indexed sender, uint256 assets, uint256 round);
 
-    event Start(uint256 indexed round, uint256 assets, uint256 shares);
+    event ScheduleRedeem(address indexed sender, uint256 shares, uint256 round);
 
-    event End(uint256 indexed round, uint256 assets, uint256 shares);
+    event SettleDeposits(address indexed depositor, uint256 newShares, uint256 round);
 
-    event Settle(uint256 indexed round, uint256 newShares, uint256 burnShares, uint256 redeemAssets);
+    event SettleRedemptions(address indexed redeemer, uint256 burnShares, uint256 redeemAssets, uint256 round);
 }

@@ -10,16 +10,16 @@ import "./interfaces/IERC4626ExtensionWithRound.sol";
 struct DepositReceipt {
     // address of depositor
     address depositor;
-    // amount of deposit asset
+    // amount of deposited assets
     uint256 assets;
 }
 
 /// @dev Data structure for a new registered redemption
-struct RedeemReceipts {
+struct RedeemReceipt {
     // address of withdrawer
     address withdrawer;
-    // amount of _shares
-    uint256 _shares;
+    // amount of shares
+    uint256 shares;
 }
 
 /// @dev An extension of ERC4626 that provides more functions to support rounds.
@@ -33,10 +33,10 @@ contract ERC4626ExtensionWithRound is Initializable, ERC4626Upgradeable, IERC462
     uint256 public override round;
 
     /// @dev The recepts of every registered deposits
-    DepositReceipt[] public depositReceipts;
+    mapping(address => DepositReceipt[]) public depositReceipts;
 
     /// @dev The recepts of every registered redemptions
-    RedeemReceipts[] public redeemReceipts;
+    mapping(address => RedeemReceipt[]) public redeemReceipts;
 
     /// @dev Throw if the vault state is LOCKED
     modifier onlyUnlocked {
@@ -57,7 +57,21 @@ contract ERC4626ExtensionWithRound is Initializable, ERC4626Upgradeable, IERC462
     }
 
     /// @dev See {IERC4626ExtensionWithRound}
-    function registerDeposit(uint256 _assets) external override onlyLocked returns (bool) {
+    function getScheduledDeposits(address _depositor) external view override returns (uint256 totalAssets) {
+        for (uint256 i = 0; i < depositReceipts[_depositor].length; i++) {
+            totalAssets += depositReceipts[_depositor][i].assets;
+        }
+    }
+
+    /// @dev See {IERC4626ExtensionWithRound}
+    function getScheduledRedemptions(address _redeemer) external view override returns (uint256 totalShares) {
+        for (uint256 i = 0; i < redeemReceipts[_redeemer].length; i++) {
+            totalShares += redeemReceipts[_redeemer][i].shares;
+        }
+    }
+
+    /// @dev See {IERC4626ExtensionWithRound}
+    function scheduleDeposit(uint256 _assets) external override onlyLocked {
         // Transfer _assets into vault
         IERC20Upgradeable(asset()).safeTransferFrom(msg.sender, address(this), _assets);
 
@@ -65,97 +79,52 @@ contract ERC4626ExtensionWithRound is Initializable, ERC4626Upgradeable, IERC462
         DepositReceipt memory newDeposit;
         newDeposit.assets = _assets;
         newDeposit.depositor = msg.sender;
-        depositReceipts.push(newDeposit);
+        depositReceipts[msg.sender].push(newDeposit);
 
-        emit RegisterDeposit(msg.sender, _assets, round);
-        return true;
+        emit ScheduleDeposit(msg.sender, _assets, round);
     }
 
     /// @dev See {IERC4626ExtensionWithRound}
-    function registerRedeem(uint256 _shares) external override onlyLocked returns (bool) {
-        require(balanceOf(msg.sender) >= _shares, "_Shares are not enough");
-
+    function scheduleRedeem(uint256 _shares) external override onlyLocked {
         // Transfer _shares to this contract
         _transfer(msg.sender, address(this), _shares);
 
         // Create new redeem receipt and store it
-        RedeemReceipts memory newRedemption;
-        newRedemption._shares = _shares;
+        RedeemReceipt memory newRedemption;
+        newRedemption.shares = _shares;
         newRedemption.withdrawer = msg.sender;
-        redeemReceipts.push(newRedemption);
+        redeemReceipts[msg.sender].push(newRedemption);
 
-        emit RegisterRedeem(msg.sender, _shares, round);
-        return true;
+        emit ScheduleRedeem(msg.sender, _shares, round);
     }
 
     /// @dev See {IERC4626ExtensionWithRound}
-    function start() external override onlyLocked returns (bool) {
-        require(depositReceipts.length == 0 && redeemReceipts.length == 0, "Unhandled receipts");
-
-        round = round + 1;
-        state = VaultState.LOCKED;
-
-        emit Start(
-            round,
-            IERC20Upgradeable(asset()).balanceOf(address(this)),
-            totalSupply()
-        );
-
-        return true;
-    }
-
-    /// @dev See {IERC4626ExtensionWithRound}
-    function end() external override onlyLocked returns (bool) {
-        state = VaultState.UNLOCKED;
-
-        emit End(
-            round,
-            IERC20Upgradeable(asset()).balanceOf(address(this)),
-            totalSupply()
-        );
-
-        return true;
-    }
-
-    /// @dev See {IERC4626ExtensionWithRound}
-    function settle() external override onlyUnlocked returns (bool) {
-        uint256 newShares = _handleDepositReceipts();
-        (uint256 burnShares, uint256 redeemAssets) = _handleRedeemReceipts();
-
-        emit Settle(round, newShares, burnShares, redeemAssets);
-        return true;
-    }
-
-    /// @dev Mint new _shares for every deposit receipts
-    function _handleDepositReceipts() private onlyUnlocked returns (uint256 newShares) {
-        // Issue new _shares
-        for (uint256 i = 0; i < depositReceipts.length; i++) {
-            uint256 _shares = previewDeposit(depositReceipts[i].assets);
-
-            _mint(depositReceipts[i].depositor, _shares);
-
+    function settleDeposits(address _depositor) external override onlyUnlocked returns (uint256 newShares) {
+        for (uint256 i = 0; i < depositReceipts[_depositor].length; i++) {
+            uint256 _shares = previewDeposit(depositReceipts[_depositor][i].assets);
             newShares += _shares;
         }
-    
-        // Delete all receipts
-        delete depositReceipts;
+        // Mint new shares
+        _mint(_depositor, newShares);
+
+        delete depositReceipts[_depositor];
+
+        emit SettleDeposits(_depositor, newShares, round);
     }
 
-    /// @dev Burn _shares and transfer assets for every redeem receipts
-    function _handleRedeemReceipts() private onlyUnlocked returns (uint256 burnShares, uint256 redeemAssets) {
-        // Burn _shares & transfer asset to withdrawer
-        for (uint256 i = 0; i < redeemReceipts.length; i++) {
-            uint256 assets = previewRedeem(redeemReceipts[i]._shares);
-
-            _burn(address(this), redeemReceipts[i]._shares);
-
-            IERC20Upgradeable(asset()).safeTransfer(redeemReceipts[i].withdrawer, assets);
-
-            burnShares += redeemReceipts[i]._shares;
+    /// @dev See {IERC4626ExtensionWithRound}
+    function settleRedemptions(address _redeemer) external override onlyUnlocked returns (uint256 burnShares, uint256 redeemAssets) {
+        for (uint256 i = 0; i < redeemReceipts[_redeemer].length; i++) {
+            uint256 assets = previewRedeem(redeemReceipts[_redeemer][i].shares);
+            burnShares += redeemReceipts[_redeemer][i].shares;
             redeemAssets += assets;
         }
+        // Burn shares and transfer assets to _redeemer
+        _burn(address(this), burnShares);
+        IERC20Upgradeable(asset()).safeTransfer(_redeemer, redeemAssets);
 
-        // Delete all receipts
-        delete redeemReceipts;
+        delete redeemReceipts[_redeemer];
+
+        emit SettleRedemptions(_redeemer, burnShares, redeemAssets, round);
     }
 }
